@@ -3,7 +3,7 @@ package com.fitformar.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,7 +26,7 @@ fun HomeScreen(
     ) {
         Text(
             text = "FitFormAR",
-            style = MaterialTheme.typography.h4,
+            style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(bottom = 32.dp)
         )
         
@@ -99,7 +99,7 @@ fun HomeScreen(
 }
 
 @Composable
-fun CategoryButton(
+private fun CategoryButton(
     name: String,
     isSelected: Boolean,
     onClick: () -> Unit
@@ -110,40 +110,44 @@ fun CategoryButton(
             .fillMaxWidth()
             .padding(vertical = 8.dp),
         colors = ButtonDefaults.buttonColors(
-            backgroundColor = if (isSelected) MaterialTheme.colors.primary else MaterialTheme.colors.surface
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
         )
     ) {
         Text(
             text = name,
-            modifier = Modifier.padding(vertical = 8.dp),
-            color = if (isSelected) MaterialTheme.colors.onPrimary else MaterialTheme.colors.onSurface
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(8.dp)
         )
     }
 }
 
 @Composable
-fun ExerciseItem(
+private fun ExerciseItem(
     exercise: Exercise,
     onClick: (Exercise) -> Unit
 ) {
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp, horizontal = 16.dp),
-        elevation = 2.dp
+        onClick = { onClick(exercise) },
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp
     ) {
-        Button(
-            onClick = { onClick(exercise) },
-            colors = ButtonDefaults.buttonColors(
-                backgroundColor = MaterialTheme.colors.surface
-            ),
-            modifier = Modifier.fillMaxWidth()
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
         ) {
             Text(
                 text = exercise.name,
-                color = MaterialTheme.colors.onSurface,
-                style = MaterialTheme.typography.body1,
-                modifier = Modifier.padding(8.dp)
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = exercise.name,
+                style = MaterialTheme.typography.bodyMedium
             )
         }
     }

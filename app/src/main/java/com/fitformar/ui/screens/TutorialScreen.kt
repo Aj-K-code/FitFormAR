@@ -4,7 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,8 +24,8 @@ fun TutorialScreen(
             .padding(16.dp)
     ) {
         Text(
-            text = exercise.name,
-            style = MaterialTheme.typography.h4,
+            text = exercise.displayName,
+            style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
@@ -35,7 +35,7 @@ fun TutorialScreen(
             item {
                 Text(
                     text = exercise.description,
-                    style = MaterialTheme.typography.body1,
+                    style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(bottom = 24.dp)
                 )
             }
@@ -43,7 +43,7 @@ fun TutorialScreen(
             item {
                 Text(
                     text = "Key Points",
-                    style = MaterialTheme.typography.h6,
+                    style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
@@ -55,8 +55,8 @@ fun TutorialScreen(
             item {
                 Text(
                     text = "Common Mistakes",
-                    style = MaterialTheme.typography.h6,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
                 )
             }
 
@@ -73,16 +73,17 @@ fun TutorialScreen(
         ) {
             Button(
                 onClick = onBack,
-                modifier = Modifier.weight(1f).padding(end = 8.dp)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary
+                )
             ) {
                 Text("Back")
             }
 
             Button(
                 onClick = onStartExercise,
-                modifier = Modifier.weight(1f).padding(start = 8.dp),
                 colors = ButtonDefaults.buttonColors(
-                    backgroundColor = MaterialTheme.colors.primary
+                    containerColor = MaterialTheme.colorScheme.primary
                 )
             ) {
                 Text("Start Exercise")
@@ -92,57 +93,37 @@ fun TutorialScreen(
 }
 
 @Composable
-fun KeyPoint(point: String) {
-    Card(
+private fun KeyPoint(point: String) {
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        elevation = 2.dp
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        tonalElevation = 1.dp
     ) {
-        Row(
-            modifier = Modifier
-                .padding(8.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "•",
-                style = MaterialTheme.typography.h6,
-                modifier = Modifier.padding(end = 8.dp)
-            )
-            Text(
-                text = point,
-                style = MaterialTheme.typography.body1
-            )
-        }
+        Text(
+            text = "• $point",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(12.dp)
+        )
     }
 }
 
 @Composable
-fun CommonMistake(mistake: String) {
-    Card(
+private fun CommonMistake(mistake: String) {
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        elevation = 2.dp,
-        backgroundColor = MaterialTheme.colors.error.copy(alpha = 0.1f)
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.errorContainer,
+        tonalElevation = 1.dp
     ) {
-        Row(
-            modifier = Modifier
-                .padding(8.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "✕",
-                style = MaterialTheme.typography.h6,
-                color = MaterialTheme.colors.error,
-                modifier = Modifier.padding(end = 8.dp)
-            )
-            Text(
-                text = mistake,
-                style = MaterialTheme.typography.body1
-            )
-        }
+        Text(
+            text = "✗ $mistake",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(12.dp)
+        )
     }
 }

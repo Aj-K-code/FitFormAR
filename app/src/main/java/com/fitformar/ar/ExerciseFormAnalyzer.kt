@@ -1,6 +1,7 @@
 package com.fitformar.ar
 
 import com.google.mlkit.vision.pose.Pose
+import com.google.mlkit.vision.pose.PoseLandmark
 import kotlin.math.abs
 import kotlin.math.atan2
 
@@ -36,9 +37,9 @@ class ExerciseFormAnalyzer {
 
         // Calculate body angle
         val bodyAngle = calculateAngle(
-            shoulders.first!!.position.y,
-            hips.first!!.position.y,
-            ankles.first!!.position.y
+            shoulders.first!!.position.y.toDouble(),
+            hips.first!!.position.y.toDouble(),
+            ankles.first!!.position.y.toDouble()
         )
 
         // Calculate hip sag
@@ -55,7 +56,6 @@ class ExerciseFormAnalyzer {
             }
             else -> {
                 feedback.append("Perfect plank form!")
-                perfectRepCount++
             }
         }
 
@@ -83,52 +83,43 @@ class ExerciseFormAnalyzer {
             return "Cannot detect pose clearly. Please adjust your position"
         }
 
-        // Calculate elbow angle
-        val elbowAngle = calculateAngle(
-            shoulders.first!!.position.y,
-            elbows.first!!.position.y,
-            wrists.first!!.position.y
+        // Calculate arm angles
+        val leftArmAngle = calculateAngle(
+            shoulders.first!!.position.y.toDouble(),
+            elbows.first!!.position.y.toDouble(),
+            wrists.first!!.position.y.toDouble()
         )
 
-        // Calculate body alignment
+        val rightArmAngle = calculateAngle(
+            shoulders.second!!.position.y.toDouble(),
+            elbows.second!!.position.y.toDouble(),
+            wrists.second!!.position.y.toDouble()
+        )
+
+        // Calculate hip alignment
         val hipAlignment = abs(hips.first!!.position.y - hips.second!!.position.y)
 
         val feedback = StringBuilder()
 
         when {
-            !isInStartPosition && elbowAngle < 20 -> {
-                isInStartPosition = true
-                feedback.append("Good starting position. Now lower your body")
-            }
-            isInStartPosition && elbowAngle > PUSHUP_ANGLE_THRESHOLD -> {
-                isInStartPosition = false
-                feedback.append("Lower your body more until your elbows are at 90 degrees")
+            leftArmAngle < PUSHUP_ANGLE_THRESHOLD || rightArmAngle < PUSHUP_ANGLE_THRESHOLD -> {
+                feedback.append("Lower your body more")
             }
             hipAlignment > 20 -> {
                 feedback.append("Keep your hips level")
             }
-            isInStartPosition && elbowAngle in 85f..95f -> {
-                feedback.append("Perfect pushup form!")
-                perfectRepCount++
-                isInStartPosition = false
+            else -> {
+                feedback.append("Perfect push-up form!")
             }
         }
 
         return feedback.toString()
     }
 
-    fun getPerfectRepCount(): Int = perfectRepCount
-
-    private fun calculateAngle(y1: Float, y2: Float, y3: Float): Float {
-        val angle = Math.toDegrees(
-            atan2(y3 - y2, y2 - y1).toDouble()
-        ).toFloat()
-        return abs(angle)
-    }
-
-    fun reset() {
-        perfectRepCount = 0
-        isInStartPosition = false
-        lastFeedback = ""
+    private fun calculateAngle(y1: Double, y2: Double, y3: Double): Float {
+        return abs(Math.toDegrees(
+            atan2(y3 - y2, 0.0) -
+            atan2(y1 - y2, 0.0)
+        )).toFloat()
     }
 }

@@ -12,6 +12,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cameraswitch
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,7 +26,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.fitformar.ar.ExerciseFormAnalyzer
-import com.fitformar.ar.PoseProcessor
 import com.fitformar.data.Exercise
 import com.fitformar.utils.SpeechManager
 import com.google.mlkit.vision.common.InputImage
@@ -37,8 +38,8 @@ private const val PERFECT_REPS_GOAL = 20
 
 @Composable
 fun CameraScreen(
-    exercise: Exercise,
-    onBackPressed: () -> Unit
+    exercise: Exercise = Exercise.PLANK,
+    onBackPressed: () -> Unit = {}
 ) {
     var showInstructions by remember { mutableStateOf(true) }
     var isFrontCamera by remember { mutableStateOf(true) }
@@ -122,7 +123,7 @@ fun CameraScreen(
                 
                 // Camera switch button
                 IconButton(
-                    onClick = onSwitchCamera,
+                    onClick = { isFrontCamera = !isFrontCamera },
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(16.dp)
@@ -130,7 +131,7 @@ fun CameraScreen(
                         .background(Color.Black.copy(alpha = 0.5f), CircleShape)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.Refresh,
+                        imageVector = Icons.Default.Cameraswitch,
                         contentDescription = "Switch Camera",
                         tint = Color.White
                     )
@@ -172,78 +173,87 @@ private fun CameraPreview(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
-    val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
     
-    DisposableEffect(Unit) {
-        onDispose {
-            try {
-                cameraExecutor.shutdown()
-            } catch (e: Exception) {
-                Log.e(TAG, "Error shutting down camera executor", e)
-            }
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        hasCameraPermission = isGranted
+        if (!isGranted) {
+            onError("Camera permission is required")
         }
     }
     
-    Box(modifier = modifier) {
+    LaunchedEffect(Unit) {
+        if (!hasCameraPermission) {
+            launcher.launch(Manifest.permission.CAMERA)
+        }
+    }
+    
+    if (hasCameraPermission) {
         AndroidView(
-            factory = { ctx ->
-                PreviewView(ctx).apply {
+            factory = { context ->
+                PreviewView(context).apply {
                     implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                 }
             },
-            modifier = Modifier.fillMaxSize(),
+            modifier = modifier,
             update = { previewView ->
+                val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
                 cameraProviderFuture.addListener({
                     try {
                         val cameraProvider = cameraProviderFuture.get()
                         
-                        val preview = Preview.Builder()
-                            .build()
-                            .also {
-                                it.setSurfaceProvider(previewView.surfaceProvider)
-                            }
+                        val preview = Preview.Builder().build()
+                        preview.setSurfaceProvider(previewView.surfaceProvider)
                         
                         val imageAnalyzer = ImageAnalysis.Builder()
                             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                             .build()
-                            .apply {
-                                setAnalyzer(cameraExecutor) { imageProxy ->
-                                    try {
-                                        val mediaImage = imageProxy.image
-                                        if (mediaImage != null) {
-                                            val inputImage = InputImage.fromMediaImage(
-                                                mediaImage,
-                                                imageProxy.imageInfo.rotationDegrees
-                                            )
-                                            
-                                            val options = PoseDetectorOptions.Builder()
-                                                .setDetectorMode(PoseDetectorOptions.STREAM_MODE)
-                                                .build()
-                                            val poseDetector = PoseDetection.getClient(options)
-                                            
-                                            poseDetector.process(inputImage)
-                                                .addOnSuccessListener { pose ->
-                                                    // Analyze form based on exercise type
-                                                    val feedback = when (exercise) {
-                                                        Exercise.PLANK -> formAnalyzer.analyzePlank(pose)
-                                                        Exercise.PUSHUP -> formAnalyzer.analyzePushup(pose)
-                                                    }
-                                                    onFeedbackUpdate(feedback)
-                                                }
-                                                .addOnFailureListener { e ->
-                                                    Log.e(TAG, "Pose detection failed", e)
-                                                    onError("Failed to detect pose: ${e.localizedMessage}")
-                                                }
+                        
+                        val poseDetector = PoseDetection.getClient(
+                            PoseDetectorOptions.Builder()
+                                .setDetectorMode(PoseDetectorOptions.STREAM_MODE)
+                                .build()
+                        )
+                        
+                        imageAnalyzer.setAnalyzer(
+                            Executors.newSingleThreadExecutor()
+                        ) { imageProxy ->
+                            val mediaImage = imageProxy.image
+                            if (mediaImage != null) {
+                                val image = InputImage.fromMediaImage(
+                                    mediaImage,
+                                    imageProxy.imageInfo.rotationDegrees
+                                )
+                                
+                                poseDetector.process(image)
+                                    .addOnSuccessListener { pose ->
+                                        val feedback = when (exercise) {
+                                            Exercise.PLANK -> formAnalyzer.analyzePlank(pose)
+                                            Exercise.PUSHUP -> formAnalyzer.analyzePushup(pose)
                                         }
-                                    } catch (e: Exception) {
-                                        Log.e(TAG, "Error analyzing image", e)
-                                        onError("Failed to analyze pose: ${e.localizedMessage}")
-                                    } finally {
+                                        onFeedbackUpdate(feedback)
+                                    }
+                                    .addOnFailureListener { e ->
+                                        Log.e(TAG, "Pose detection failed", e)
+                                        onError("Pose detection failed: ${e.message}")
+                                    }
+                                    .addOnCompleteListener {
                                         imageProxy.close()
                                     }
-                                }
+                            } else {
+                                imageProxy.close()
                             }
+                        }
                         
                         val cameraSelector = if (isFrontCamera) {
                             CameraSelector.DEFAULT_FRONT_CAMERA
@@ -261,72 +271,14 @@ private fun CameraPreview(
                             )
                         } catch (e: Exception) {
                             Log.e(TAG, "Use case binding failed", e)
-                            onError("Failed to start camera: ${e.localizedMessage}")
+                            onError("Failed to start camera: ${e.message}")
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Camera provider setup failed", e)
-                        onError("Camera initialization failed: ${e.localizedMessage}")
+                        Log.e(TAG, "Camera initialization failed", e)
+                        onError("Failed to initialize camera: ${e.message}")
                     }
                 }, ContextCompat.getMainExecutor(context))
             }
         )
-    }
-}
-
-@Composable
-fun AROverlay(
-    exercise: Exercise,
-    feedback: String,
-    onBackPressed: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(modifier = modifier) {
-        Card(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(16.dp),
-            elevation = 4.dp
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = exercise.name,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = feedback,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ControlPanel(
-    exercise: Exercise,
-    onBackPressed: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        elevation = 4.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Button(onClick = onBackPressed) {
-                Text("Back")
-            }
-            Button(onClick = { /* Toggle recording */ }) {
-                Text("Start Recording")
-            }
-        }
     }
 }

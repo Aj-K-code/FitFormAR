@@ -1,8 +1,8 @@
 package com.fitformar.data
 
-enum class Exercise {
-    PLANK,
-    PUSHUP;
+enum class Exercise(val category: ExerciseCategory) {
+    PLANK(ExerciseCategory.CORE_ABDOMINAL),
+    PUSHUP(ExerciseCategory.UPPER_BODY);
 
     val displayName: String
         get() = name.lowercase().replaceFirstChar { it.uppercase() }
